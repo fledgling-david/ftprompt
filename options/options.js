@@ -320,6 +320,7 @@ async function loadFeishuConfig() {
   document.getElementById('feishuAppSecret').value = config.appSecret || '';
   document.getElementById('feishuAppToken').value = config.appToken || '';
   document.getElementById('feishuTableId').value = config.tableId || '';
+  document.getElementById('feishuUploadImage').checked = config.uploadImage === true;
 }
 
 document.getElementById('saveFeishuBtn').addEventListener('click', async () => {
@@ -329,6 +330,7 @@ document.getElementById('saveFeishuBtn').addEventListener('click', async () => {
     appSecret: document.getElementById('feishuAppSecret').value.trim(),
     appToken: document.getElementById('feishuAppToken').value.trim(),
     tableId: document.getElementById('feishuTableId').value.trim(),
+    uploadImage: document.getElementById('feishuUploadImage').checked,
   };
   await Storage.saveFeishuConfig(config);
   showToast('飞书配置已保存', 'success');
@@ -368,6 +370,7 @@ document.getElementById('testWriteBtn').addEventListener('click', async () => {
     appSecret: document.getElementById('feishuAppSecret').value.trim(),
     appToken: document.getElementById('feishuAppToken').value.trim(),
     tableId: document.getElementById('feishuTableId').value.trim(),
+    uploadImage: document.getElementById('feishuUploadImage').checked,
   };
 
   if (!config.appId || !config.appSecret || !config.appToken || !config.tableId) {

@@ -65,6 +65,18 @@ const FeishuAPI = {
       const token = await this.getAccessToken(config.appId, config.appSecret);
       const fields = this.buildRecordFields(record);
 
+      // 如果启用了图片上传，先上传图片再关联附件字段
+      if (config.uploadImage && record.imageUrl) {
+        try {
+          const fileToken = await this.uploadImage(token, record.imageUrl, config.appToken);
+          if (fileToken) {
+            fields['图片附件'] = [{ file_token: fileToken }];
+          }
+        } catch (uploadErr) {
+          console.warn('[FeishuAPI] 图片上传失败，仅写入文本:', uploadErr.message);
+        }
+      }
+
       const url = `https://open.feishu.cn/open-apis/bitable/v1/apps/${config.appToken}/tables/${config.tableId}/records`;
       const response = await fetch(url, {
         method: 'POST',
@@ -88,6 +100,54 @@ const FeishuAPI = {
     } catch (e) {
       return { success: false, message: `网络错误: ${e.message}` };
     }
+  },
+
+  /**
+   * 上传图片到飞书云盘，返回 file_token
+   * @param {string} token - tenant_access_token
+   * @param {string} imageUrl - 图片 URL
+   * @param {string} appToken - 多维表格 app_token（作为上传父节点）
+   * @returns {Promise<string|null>} file_token
+   */
+  async uploadImage(token, imageUrl, appToken) {
+    // 1. 下载图片
+    const imgResponse = await fetch(imageUrl);
+    if (!imgResponse.ok) {
+      throw new Error(`下载图片失败 (${imgResponse.status})`);
+    }
+    const blob = await imgResponse.blob();
+
+    // 2. 生成文件名
+    const ext = (blob.type.split('/')[1] || 'jpg').split(';')[0];
+    const fileName = `prompt-reverse-${Date.now()}.${ext}`;
+
+    // 3. 构建 multipart/form-data 上传
+    const formData = new FormData();
+    formData.append('file_name', fileName);
+    formData.append('parent_type', 'bitable_file');
+    formData.append('parent_node', appToken);
+    formData.append('size', blob.size.toString());
+    formData.append('file', blob, fileName);
+
+    // 4. 上传到飞书云盘
+    const uploadResponse = await fetch('https://open.feishu.cn/open-apis/drive/v1/medias/upload_all', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!uploadResponse.ok) {
+      const errText = await uploadResponse.text();
+      throw new Error(`上传失败 (${uploadResponse.status}): ${errText}`);
+    }
+
+    const result = await uploadResponse.json();
+    if (result.code === 0 && result.data?.file_token) {
+      return result.data.file_token;
+    }
+    throw new Error(`飞书返回错误: ${result.msg || JSON.stringify(result)}`);
   },
 
   /**
@@ -175,6 +235,11 @@ const FeishuAPI = {
    * @returns {Promise<{success: boolean, message: string}>}
    */
   async testWrite(config) {
+    const testConfig = { ...config };
+    // 测试写入时禁用图片上传（没有真实图片可上传）
+    if (testConfig.uploadImage) {
+      testConfig.uploadImage = false;
+    }
     const testRecord = {
       createdAt: new Date().toISOString(),
       imageUrl: 'https://example.com/test.jpg',
@@ -186,7 +251,7 @@ const FeishuAPI = {
       sceneDescription: '测试场景描述',
       styleAnalysis: '测试风格分析',
     };
-    return this.writeToBitable(testRecord, config);
+    return this.writeToBitable(testRecord, testConfig);
   },
 
   /**

@@ -142,6 +142,14 @@
         <small>数据表 ID，格式：https://xxx.feishu.cn/base/bascnXXX?table=<strong>tblXXX</strong></small>
       </div>
 
+      <h3>图片上传</h3>
+      <div class="form-group">
+        <label>
+          <input type="checkbox" id="feishuUploadImage"> 同时上传图片到多维表格附件
+        </label>
+        <small>开启后会在多维表格中自动上传图片文件（需在表格中添加「图片附件」附件类型字段，并添加 drive:drive 权限）</small>
+      </div>
+
       <div class="btn-group">
         <button class="btn btn-primary" id="saveFeishuBtn">保存配置</button>
         <button class="btn btn-secondary" id="testFeishuBtn">测试连接</button>
@@ -159,6 +167,7 @@
           <summary>2. 添加权限</summary>
           <div>进入应用 → 权限管理 → 搜索并添加：</div>
           <div><code>bitable:app</code>（读写多维表格）</div>
+          <div><code>drive:drive</code>（云盘文件上传，仅图片上传功能需要）</div>
           <div>然后点击「发布版本」并申请权限审批</div>
         </details>
         <details class="provider-detail">
@@ -167,7 +176,8 @@
           <div><code>生成时间</code>、<code>图片链接</code>、<code>来源网页</code>、<code>使用模型</code></div>
           <div><code>中文提示词</code>、<code>英文提示词</code>、<code>反向提示词</code></div>
           <div><code>画面描述</code>、<code>风格分析</code></div>
-          <div>所有字段类型选择「文本」即可</div>
+          <div>以上字段类型选择「文本」即可</div>
+          <div>如果需要上传图片：添加 <code>图片附件</code> 字段，类型选择「附件」</div>
         </details>
         <details class="provider-detail">
           <summary>4. 获取 App Token 和 Table ID</summary>

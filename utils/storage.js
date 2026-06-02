@@ -182,6 +182,8 @@ const Storage = {
       appSecret: '',
       appToken: '',
       tableId: '',
+      // 图片上传
+      uploadImage: false,
       // 旧版 Webhook 配置（兼容保留）
       webhookUrl: '',
     };
