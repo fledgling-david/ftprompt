@@ -6,6 +6,34 @@
 // 导入工具模块（Service Worker 中使用 importScripts）
 importScripts('utils/storage.js', 'utils/models.js', 'utils/feishu.js', 'utils/promptTemplate.js');
 
+// ==================== 并发任务队列 ====================
+
+const taskQueue = [];
+let activeTasks = 0;
+const MAX_CONCURRENT = 3;
+
+async function enqueueTask(taskFn) {
+  if (activeTasks >= MAX_CONCURRENT) {
+    return new Promise((resolve, reject) => {
+      taskQueue.push({ taskFn, resolve, reject });
+    });
+  }
+  return runTask(taskFn);
+}
+
+async function runTask(taskFn) {
+  activeTasks++;
+  try {
+    return await taskFn();
+  } finally {
+    activeTasks--;
+    if (taskQueue.length > 0) {
+      const next = taskQueue.shift();
+      runTask(next.taskFn).then(next.resolve).catch(next.reject);
+    }
+  }
+}
+
 // ==================== 右键菜单 ====================
 
 /**
@@ -49,77 +77,65 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
   const imageUrl = info.srcUrl;
   const sourceUrl = tab.url;
+  const taskId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
   console.log('[Background] 右键点击图片:', imageUrl);
 
-  // 获取当前启用的模型
-  const model = await Storage.getActiveModel();
-  if (!model) {
-    // 发送错误消息到 content script
-    await sendToContent(tab.id, {
-      type: 'SHOW_ERROR',
-      error: '请先在插件设置中配置并启用 AI 模型',
-    });
-    return;
-  }
-
-  // 获取提示词模板
-  const promptTemplate = await Storage.getPromptTemplate();
-
-  // 通知 content script 开始处理
+  // 立即通知 content script 显示加载通知（不等待队列）
   await sendToContent(tab.id, {
     type: 'START_PROCESSING',
     imageUrl,
+    taskId,
   });
 
-  try {
-    // 调用模型 API
-    const result = await processImageWithModel(imageUrl, model, promptTemplate, tab.id);
-
-    // 解析模型返回
-    const parsed = parsePromptResponse(result);
-
-    // 构建记录
-    const record = {
-      imageUrl,
-      sourceUrl,
-      modelName: model.model,
-      ...parsed,
-      createdAt: new Date().toISOString(),
-      sentToFeishu: false,
-    };
-
-    // 自动保存到历史记录
-    const historySettings = await Storage.getHistorySettings();
-    if (historySettings.enabled) {
-      await Storage.addHistoryRecord(record);
-    }
-
-    // 自动备份到飞书多维表格
-    const feishuConfig = await Storage.getFeishuConfig();
-    if (feishuConfig.enabled && feishuConfig.appToken && feishuConfig.tableId) {
-      const feishuResult = await FeishuAPI.writeToBitable(record, feishuConfig);
-      if (feishuResult.success) {
-        record.sentToFeishu = true;
-        await Storage.updateHistoryRecord(record.id, { sentToFeishu: true });
-      } else {
-        console.warn('[Background] 飞书自动备份失败:', feishuResult.message);
+  // 将实际处理放入队列
+  enqueueTask(async () => {
+    try {
+      const model = await Storage.getActiveModel();
+      if (!model) {
+        await sendToContent(tab.id, {
+          type: 'SHOW_ERROR',
+          error: '请先在插件设置中配置并启用 AI 模型',
+          taskId,
+        });
+        return;
       }
-    }
 
-    // 发送结果到 content script 显示浮层
-    await sendToContent(tab.id, {
-      type: 'SHOW_RESULT',
-      record,
-    });
-  } catch (error) {
-    console.error('[Background] 处理失败:', error);
-    await sendToContent(tab.id, {
-      type: 'SHOW_ERROR',
-      error: error.message,
-      imageUrl,
-    });
-  }
+      const promptTemplate = await Storage.getPromptTemplate();
+      const result = await processImageWithModel(imageUrl, model, promptTemplate, tab.id);
+      const parsed = parsePromptResponse(result);
+
+      const record = {
+        imageUrl,
+        sourceUrl,
+        modelName: model.model,
+        ...parsed,
+        createdAt: new Date().toISOString(),
+        sentToFeishu: false,
+      };
+
+      const historySettings = await Storage.getHistorySettings();
+      if (historySettings.enabled) {
+        await Storage.addHistoryRecord(record);
+      }
+
+      const feishuConfig = await Storage.getFeishuConfig();
+      if (feishuConfig.enabled && feishuConfig.appToken && feishuConfig.tableId) {
+        const feishuResult = await FeishuAPI.writeToBitable(record, feishuConfig);
+        if (feishuResult.success) {
+          record.sentToFeishu = true;
+          await Storage.updateHistoryRecord(record.id, { sentToFeishu: true });
+        } else {
+          console.warn('[Background] 飞书自动备份失败:', feishuResult.message);
+        }
+      }
+
+      await sendToContent(tab.id, { type: 'SHOW_RESULT', record, taskId });
+    } catch (error) {
+      console.error('[Background] 处理失败:', error);
+      await sendToContent(tab.id, { type: 'SHOW_ERROR', error: error.message, imageUrl, taskId });
+    }
+  });
 });
 
 /**
@@ -514,56 +530,59 @@ async function handleMessage(message, sender) {
 
     // 分析指定图片（从 popup 或 content script 触发）
     case 'ANALYZE_IMAGE': {
-      const { imageUrl, sourceUrl } = message;
-      const model = await Storage.getActiveModel();
-      if (!model) return { success: false, error: '请先配置并启用 AI 模型' };
-
-      const promptTemplate = await Storage.getPromptTemplate();
+      const { imageUrl, sourceUrl, taskId } = message;
       const tabId = sender && sender.tab ? sender.tab.id : null;
 
-      try {
-        const result = await processImageWithModel(imageUrl, model, promptTemplate, tabId);
-        const parsed = parsePromptResponse(result);
+      return enqueueTask(async () => {
+        const model = await Storage.getActiveModel();
+        if (!model) return { success: false, error: '请先配置并启用 AI 模型' };
 
-        const record = {
-          imageUrl,
-          sourceUrl: sourceUrl || (sender && sender.tab ? sender.tab.url : ''),
-          modelName: model.model,
-          ...parsed,
-          createdAt: new Date().toISOString(),
-          sentToFeishu: false,
-        };
+        const promptTemplate = await Storage.getPromptTemplate();
 
-        // 自动保存到历史记录
-        const historySettings = await Storage.getHistorySettings();
-        if (historySettings.enabled) {
-          await Storage.addHistoryRecord(record);
-        }
+        try {
+          const result = await processImageWithModel(imageUrl, model, promptTemplate, tabId);
+          const parsed = parsePromptResponse(result);
 
-        // 自动备份到飞书多维表格
-        const feishuConfig = await Storage.getFeishuConfig();
-        if (feishuConfig.enabled && feishuConfig.appToken && feishuConfig.tableId) {
-          const feishuResult = await FeishuAPI.writeToBitable(record, feishuConfig);
-          if (feishuResult.success) {
-            record.sentToFeishu = true;
-            await Storage.updateHistoryRecord(record.id, { sentToFeishu: true });
-          } else {
-            console.warn('[Background] 飞书自动备份失败:', feishuResult.message);
+          const record = {
+            imageUrl,
+            sourceUrl: sourceUrl || (sender && sender.tab ? sender.tab.url : ''),
+            modelName: model.model,
+            ...parsed,
+            createdAt: new Date().toISOString(),
+            sentToFeishu: false,
+          };
+
+          // 自动保存到历史记录
+          const historySettings = await Storage.getHistorySettings();
+          if (historySettings.enabled) {
+            await Storage.addHistoryRecord(record);
           }
-        }
 
-        // 如果来自 content script，显示结果浮层
-        if (tabId) {
-          await sendToContent(tabId, { type: 'SHOW_RESULT', record });
-        }
+          // 自动备份到飞书多维表格
+          const feishuConfig = await Storage.getFeishuConfig();
+          if (feishuConfig.enabled && feishuConfig.appToken && feishuConfig.tableId) {
+            const feishuResult = await FeishuAPI.writeToBitable(record, feishuConfig);
+            if (feishuResult.success) {
+              record.sentToFeishu = true;
+              await Storage.updateHistoryRecord(record.id, { sentToFeishu: true });
+            } else {
+              console.warn('[Background] 飞书自动备份失败:', feishuResult.message);
+            }
+          }
 
-        return { success: true, record };
-      } catch (error) {
-        if (tabId) {
-          await sendToContent(tabId, { type: 'SHOW_ERROR', error: error.message, imageUrl });
+          // 发送结果到 content script 显示通知
+          if (tabId) {
+            await sendToContent(tabId, { type: 'SHOW_RESULT', record, taskId });
+          }
+
+          return { success: true, record };
+        } catch (error) {
+          if (tabId) {
+            await sendToContent(tabId, { type: 'SHOW_ERROR', error: error.message, imageUrl, taskId });
+          }
+          return { success: false, error: error.message };
         }
-        return { success: false, error: error.message };
-      }
+      });
     }
 
     default:

@@ -63,22 +63,35 @@ const ModelCaller = {
       max_tokens: 4096,
     };
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(body),
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60000); // 60秒超时
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`模型请求失败 (${response.status}): ${errorText}`);
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`模型请求失败 (${response.status}): ${errorText}`);
+      }
+
+      const result = await response.json();
+      return this.parseModelResponse(result);
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        throw new Error('请求超时（60秒），请检查网络连接或换用更快的模型');
+      }
+      throw e;
+    } finally {
+      clearTimeout(timeout);
     }
-
-    const result = await response.json();
-    return this.parseModelResponse(result);
   },
 
   /**
@@ -105,23 +118,35 @@ const ModelCaller = {
       ],
     };
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60000);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Gemini 请求失败 (${response.status}): ${errorText}`);
-    }
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
 
-    const result = await response.json();
-    // Gemini 返回格式解析
-    if (result.candidates && result.candidates[0]?.content?.parts) {
-      return result.candidates[0].content.parts.map(p => p.text).join('\n');
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Gemini 请求失败 (${response.status}): ${errorText}`);
+      }
+
+      const result = await response.json();
+      if (result.candidates && result.candidates[0]?.content?.parts) {
+        return result.candidates[0].content.parts.map(p => p.text).join('\n');
+      }
+      return JSON.stringify(result);
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        throw new Error('请求超时（60秒），请检查网络连接或换用更快的模型');
+      }
+      throw e;
+    } finally {
+      clearTimeout(timeout);
     }
-    return JSON.stringify(result);
   },
 
   /**

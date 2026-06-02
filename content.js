@@ -71,63 +71,31 @@
     `;
   }
 
-  // ==================== Shadow DOM 容器 ====================
+  // ==================== 通知系统 ====================
 
   const CONTAINER_ID = 'ai-prompt-reverse-overlay';
   let shadowRoot = null;
   let overlayContainer = null;
+  const taskMap = new Map();
 
-  /**
-   * 创建 Shadow DOM 容器
-   */
-  function createOverlay() {
+  function ensureContainer() {
     if (overlayContainer) return;
-
-    // 创建宿主元素
     overlayContainer = document.createElement('div');
     overlayContainer.id = CONTAINER_ID;
     document.body.appendChild(overlayContainer);
-
-    // 创建 Shadow DOM
     shadowRoot = overlayContainer.attachShadow({ mode: 'open' });
-
-    // 注入样式
     const style = document.createElement('style');
-    style.textContent = getOverlayStyles();
+    style.textContent = getNotificationStyles();
     shadowRoot.appendChild(style);
-
-    // 创建浮层主体
-    const panel = document.createElement('div');
-    panel.className = 'panel';
-    panel.innerHTML = getPanelHTML();
-    shadowRoot.appendChild(panel);
-
-    // 绑定事件
-    bindPanelEvents(panel);
-
-    console.log('[Content] 浮层已创建');
+    const container = document.createElement('div');
+    container.className = 'notification-container';
+    shadowRoot.appendChild(container);
+    console.log('[Content] 通知容器已创建');
   }
 
-  /**
-   * 显示浮层
-   */
-  function showOverlay() {
-    if (!overlayContainer) createOverlay();
-    overlayContainer.style.display = 'block';
-  }
+  // ==================== 通知样式 ====================
 
-  /**
-   * 隐藏浮层
-   */
-  function hideOverlay() {
-    if (overlayContainer) {
-      overlayContainer.style.display = 'none';
-    }
-  }
-
-  // ==================== 浮层样式 ====================
-
-  function getOverlayStyles() {
+  function getNotificationStyles() {
     return `
       :host {
         all: initial;
@@ -136,456 +104,300 @@
         line-height: 1.6;
         color: #333;
       }
-
-      .panel {
+      .notification-container {
         position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 680px;
-        max-width: 90vw;
-        max-height: 85vh;
-        background: #fff;
-        border-radius: 12px;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        bottom: 20px;
+        right: 20px;
         z-index: 2147483647;
         display: flex;
-        flex-direction: column;
-        overflow: hidden;
-      }
-
-      .header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 16px 20px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: #fff;
-      }
-
-      .header h2 {
-        margin: 0;
-        font-size: 18px;
-        font-weight: 600;
-      }
-
-      .close-btn {
-        background: rgba(255,255,255,0.2);
-        border: none;
-        color: #fff;
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: background 0.2s;
-      }
-
-      .close-btn:hover {
-        background: rgba(255,255,255,0.3);
-      }
-
-      .content {
-        flex: 1;
+        flex-direction: column-reverse;
+        gap: 8px;
+        max-height: 80vh;
         overflow-y: auto;
-        padding: 20px;
       }
-
-      .image-preview {
-        width: 100%;
-        max-height: 200px;
-        object-fit: contain;
-        border-radius: 8px;
-        background: #f5f5f5;
-        margin-bottom: 16px;
+      .notification {
+        width: 360px;
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+        overflow: hidden;
+        animation: slideInRight 0.3s ease;
+        cursor: default;
       }
-
-      .status {
-        padding: 12px 16px;
-        background: #f0f4ff;
-        border-radius: 8px;
-        margin-bottom: 16px;
+      @keyframes slideInRight {
+        from { transform: translateX(120%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+      .status-bar {
+        height: 3px;
+        background: #667eea;
+        transition: background 0.3s;
+      }
+      .notification.loading .status-bar {
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.4; }
+      }
+      .notification.done .status-bar { background: #10b981; }
+      .notification.error .status-bar { background: #ef4444; }
+      .card-header {
         display: flex;
         align-items: center;
+        padding: 12px 14px;
         gap: 10px;
+        cursor: pointer;
+        user-select: none;
       }
-
-      .status.loading {
-        background: #fff4e6;
+      .card-header:hover { background: #f8f9fa; }
+      .card-thumb {
+        width: 40px;
+        height: 40px;
+        border-radius: 6px;
+        object-fit: cover;
+        flex-shrink: 0;
+        background: #f0f0f0;
       }
-
-      .status.error {
-        background: #ffe6e6;
+      .card-info {
+        flex: 1;
+        min-width: 0;
       }
-
-      .status.success {
-        background: #e6ffed;
+      .card-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: #333;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
-
+      .card-subtitle {
+        font-size: 12px;
+        color: #888;
+      }
       .spinner {
-        width: 20px;
-        height: 20px;
-        border: 3px solid #f3f3f3;
-        border-top: 3px solid #667eea;
+        width: 18px;
+        height: 18px;
+        border: 2px solid #e9ecef;
+        border-top: 2px solid #667eea;
         border-radius: 50%;
         animation: spin 1s linear infinite;
+        flex-shrink: 0;
       }
-
       @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
       }
-
-      .section {
-        margin-bottom: 20px;
+      .status-icon {
+        font-size: 16px;
+        flex-shrink: 0;
       }
-
+      .close-btn {
+        background: none;
+        border: none;
+        font-size: 18px;
+        color: #999;
+        cursor: pointer;
+        padding: 0 4px;
+        line-height: 1;
+        flex-shrink: 0;
+      }
+      .close-btn:hover { color: #333; }
+      .result-section {
+        display: none;
+        border-top: 1px solid #e9ecef;
+        max-height: 400px;
+        overflow-y: auto;
+        padding: 12px 14px;
+      }
+      .result-section.expanded { display: block; }
+      .section {
+        margin-bottom: 12px;
+      }
       .section-title {
-        font-size: 15px;
+        font-size: 12px;
         font-weight: 600;
         color: #667eea;
-        margin-bottom: 8px;
-        display: flex;
-        align-items: center;
-        gap: 6px;
+        margin-bottom: 4px;
       }
-
       .section-content {
         background: #f8f9fa;
-        padding: 12px 16px;
-        border-radius: 8px;
+        padding: 8px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        line-height: 1.6;
         white-space: pre-wrap;
         word-break: break-word;
-        font-size: 13px;
-        line-height: 1.7;
       }
-
-      .btn-group {
+      .card-actions {
         display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        padding: 16px 20px;
-        background: #f8f9fa;
+        gap: 6px;
+        padding: 10px 14px;
         border-top: 1px solid #e9ecef;
+        flex-wrap: wrap;
       }
-
       .btn {
-        padding: 8px 16px;
+        padding: 5px 10px;
         border: none;
-        border-radius: 6px;
-        font-size: 13px;
-        font-weight: 500;
+        border-radius: 5px;
+        font-size: 11px;
         cursor: pointer;
         transition: all 0.2s;
-        display: flex;
-        align-items: center;
-        gap: 6px;
       }
-
-      .btn-primary {
-        background: #667eea;
-        color: #fff;
-      }
-
-      .btn-primary:hover {
-        background: #5568d3;
-      }
-
-      .btn-secondary {
-        background: #fff;
-        color: #667eea;
-        border: 1px solid #667eea;
-      }
-
-      .btn-secondary:hover {
-        background: #f0f4ff;
-      }
-
-      .btn-success {
-        background: #10b981;
-        color: #fff;
-      }
-
-      .btn-success:hover {
-        background: #059669;
-      }
-
-      .btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-
+      .btn-primary { background: #667eea; color: #fff; }
+      .btn-primary:hover { background: #5568d3; }
+      .btn-secondary { background: #fff; color: #667eea; border: 1px solid #667eea; }
+      .btn-secondary:hover { background: #f0f4ff; }
+      .btn-success { background: #10b981; color: #fff; }
+      .btn-success:hover { background: #059669; }
+      .btn:disabled { opacity: 0.5; cursor: not-allowed; }
       .toast {
         position: fixed;
         top: 20px;
         right: 20px;
-        padding: 12px 20px;
+        padding: 10px 16px;
         background: #333;
         color: #fff;
         border-radius: 8px;
         font-size: 13px;
         z-index: 2147483647;
-        animation: slideIn 0.3s ease;
+        animation: toastIn 0.3s ease;
       }
-
-      @keyframes slideIn {
-        from {
-          transform: translateX(400px);
-          opacity: 0;
-        }
-        to {
-          transform: translateX(0);
-          opacity: 1;
-        }
+      @keyframes toastIn {
+        from { transform: translateX(120%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
       }
-
-      .hidden {
-        display: none !important;
-      }
+      .hidden { display: none !important; }
     `;
   }
 
 
 
-  // ==================== 浮层 HTML ====================
+  // ==================== 通知卡片 ====================
 
-  function getPanelHTML() {
-    return `
-      <div class="header">
-        <h2>图片反推提示词</h2>
-        <button class="close-btn" id="closeBtn">×</button>
-      </div>
+  function generateTaskId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  }
 
-      <div class="content">
-        <img class="image-preview" id="imagePreview" alt="图片预览" />
-
-        <div class="status loading" id="statusBox">
-          <div class="spinner"></div>
-          <span id="statusText">正在处理中...</span>
+  function createNotificationCard(taskId, imageUrl) {
+    ensureContainer();
+    const container = shadowRoot.querySelector('.notification-container');
+    const card = document.createElement('div');
+    card.className = 'notification loading';
+    card.dataset.taskId = taskId;
+    card.innerHTML = `
+      <div class="status-bar"></div>
+      <div class="card-header">
+        <img class="card-thumb" src="${imageUrl}" alt="" crossorigin="anonymous" onerror="this.style.display='none'" />
+        <div class="card-info">
+          <div class="card-title">正在分析图片...</div>
+          <div class="card-subtitle">处理中</div>
         </div>
-
-        <div id="resultArea" class="hidden">
-          <div class="section">
-            <div class="section-title">图片内容描述</div>
-            <div class="section-content" id="descriptionText"></div>
-          </div>
-
-          <div class="section">
-            <div class="section-title">风格分析</div>
-            <div class="section-content" id="styleText"></div>
-          </div>
-
-          <div class="section">
-            <div class="section-title">中文提示词</div>
-            <div class="section-content" id="chineseText"></div>
-          </div>
-
-          <div class="section">
-            <div class="section-title">英文提示词</div>
-            <div class="section-content" id="englishText"></div>
-          </div>
-
-          <div class="section">
-            <div class="section-title">Negative Prompt</div>
-            <div class="section-content" id="negativeText"></div>
-          </div>
-
-          <div class="section">
-            <div class="section-title">原始返回</div>
-            <div class="section-content" id="rawText"></div>
-          </div>
-        </div>
+        <div class="spinner"></div>
+        <span class="status-icon hidden"></span>
+        <button class="close-btn" title="关闭">×</button>
       </div>
-
-      <div class="btn-group" id="btnGroup">
-        <button class="btn btn-primary" id="copyChineseBtn">复制中文</button>
-        <button class="btn btn-primary" id="copyEnglishBtn">复制英文</button>
-        <button class="btn btn-secondary" id="copyAllBtn">复制全部</button>
-        <button class="btn btn-secondary" id="regenerateBtn">重新生成</button>
-        <button class="btn btn-success" id="sendFeishuBtn">发送飞书</button>
-        <button class="btn btn-success" id="saveBtn">已保存</button>
-      </div>
+      <div class="result-section"></div>
     `;
+    card.querySelector('.close-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      card.remove();
+      taskMap.delete(taskId);
+    });
+    container.appendChild(card);
+    taskMap.set(taskId, { card, record: null, status: 'loading' });
+    return card;
   }
 
-  // ==================== 事件绑定 ====================
-
-  function bindPanelEvents(panel) {
-    // 关闭按钮
-    panel.querySelector('#closeBtn').addEventListener('click', hideOverlay);
-
-    // 复制中文
-    panel.querySelector('#copyChineseBtn').addEventListener('click', () => {
-      const text = panel.querySelector('#chineseText').textContent;
-      copyToClipboard(text, '中文提示词已复制');
+  function updateNotificationDone(taskId, record) {
+    const task = taskMap.get(taskId);
+    if (!task) return;
+    const { card } = task;
+    task.record = record;
+    task.status = 'done';
+    card.className = 'notification done';
+    card.querySelector('.spinner').classList.add('hidden');
+    const icon = card.querySelector('.status-icon');
+    icon.textContent = '✓';
+    icon.classList.remove('hidden');
+    card.querySelector('.card-title').textContent = '分析完成';
+    card.querySelector('.card-subtitle').textContent = '点击查看结果';
+    const resultSection = card.querySelector('.result-section');
+    resultSection.innerHTML = `
+      <div class="section"><div class="section-title">画面描述</div><div class="section-content">${esc(record.description) || '无'}</div></div>
+      <div class="section"><div class="section-title">风格分析</div><div class="section-content">${esc(record.styleAnalysis) || '无'}</div></div>
+      <div class="section"><div class="section-title">中文提示词</div><div class="section-content">${esc(record.chinesePrompt) || '无'}</div></div>
+      <div class="section"><div class="section-title">英文提示词</div><div class="section-content">${esc(record.englishPrompt) || '无'}</div></div>
+      <div class="section"><div class="section-title">Negative Prompt</div><div class="section-content">${esc(record.negativePrompt) || '无'}</div></div>
+    `;
+    const actions = document.createElement('div');
+    actions.className = 'card-actions';
+    actions.innerHTML = `
+      <button class="btn btn-primary" data-action="copy-cn">复制中文</button>
+      <button class="btn btn-primary" data-action="copy-en">复制英文</button>
+      <button class="btn btn-secondary" data-action="copy-all">复制全部</button>
+      <button class="btn btn-success" data-action="send-feishu">发送飞书</button>
+    `;
+    card.appendChild(actions);
+    card.querySelector('.card-header').addEventListener('click', () => {
+      resultSection.classList.toggle('expanded');
+      actions.style.display = resultSection.classList.contains('expanded') ? 'flex' : 'none';
     });
-
-    // 复制英文
-    panel.querySelector('#copyEnglishBtn').addEventListener('click', () => {
-      const text = panel.querySelector('#englishText').textContent;
-      copyToClipboard(text, '英文提示词已复制');
-    });
-
-    // 复制全部
-    panel.querySelector('#copyAllBtn').addEventListener('click', () => {
-      const record = getCurrentRecord();
-      if (!record) return;
-      const all = [
-        '【中文提示词】',
-        record.chinesePrompt,
-        '',
-        '【英文提示词】',
-        record.englishPrompt,
-        '',
-        '【Negative Prompt】',
-        record.negativePrompt,
-        '',
-        '【描述】',
-        record.description,
-        '',
-        '【风格】',
-        record.styleAnalysis,
-      ].join('\n');
-      copyToClipboard(all, '全部内容已复制');
-    });
-
-    // 重新生成
-    panel.querySelector('#regenerateBtn').addEventListener('click', async () => {
-      const record = getCurrentRecord();
-      if (!record) return;
-
-      showLoading('正在重新生成...');
-
-      try {
-        const response = await chrome.runtime.sendMessage({
-          type: 'REGENERATE',
-          imageUrl: record.imageUrl,
-        });
-
-        if (response.success) {
-          updateRecord(response.parsed);
-          showResult(response.parsed);
-          showToast('已重新生成');
-        } else {
-          showError(response.error);
-        }
-      } catch (e) {
-        showError('重新生成失败: ' + e.message);
-      }
-    });
-
-    // 发送飞书
-    panel.querySelector('#sendFeishuBtn').addEventListener('click', async () => {
-      const record = getCurrentRecord();
-      if (!record) return;
-
-      const btn = panel.querySelector('#sendFeishuBtn');
-      btn.disabled = true;
-      btn.textContent = '发送中...';
-
-      try {
-        const response = await chrome.runtime.sendMessage({
-          type: 'SEND_TO_FEISHU',
-          record,
-        });
-
-        if (response.success) {
-          showToast('已发送到飞书');
-          btn.textContent = '已发送';
-        } else {
-          showToast('发送失败: ' + response.message);
-          btn.textContent = '发送飞书';
-          btn.disabled = false;
-        }
-      } catch (e) {
-        showToast('发送失败: ' + e.message);
-        btn.textContent = '发送飞书';
-        btn.disabled = false;
-      }
+    actions.style.display = 'none';
+    actions.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const action = e.target.dataset.action;
+      if (action === 'copy-cn') copyText(record.chinesePrompt, '中文提示词已复制');
+      else if (action === 'copy-en') copyText(record.englishPrompt, '英文提示词已复制');
+      else if (action === 'copy-all') copyAllFields(record);
+      else if (action === 'send-feishu') sendToFeishu(e.target, record);
     });
   }
 
-  // ==================== 数据管理 ====================
-
-  let currentRecord = null;
-
-  function getCurrentRecord() {
-    return currentRecord;
+  function updateNotificationError(taskId, error) {
+    const task = taskMap.get(taskId);
+    if (!task) return;
+    const { card } = task;
+    task.status = 'error';
+    card.className = 'notification error';
+    card.querySelector('.spinner').classList.add('hidden');
+    const icon = card.querySelector('.status-icon');
+    icon.textContent = '✗';
+    icon.classList.remove('hidden');
+    card.querySelector('.card-title').textContent = '分析失败';
+    card.querySelector('.card-subtitle').textContent = error;
   }
 
-  function updateRecord(parsed) {
-    if (!currentRecord) return;
-    Object.assign(currentRecord, parsed);
+  function esc(str) {
+    if (!str) return '';
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
-  // ==================== UI 更新 ====================
-
-  function showLoading(text) {
-    const statusBox = shadowRoot.querySelector('#statusBox');
-    const statusText = shadowRoot.querySelector('#statusText');
-    const resultArea = shadowRoot.querySelector('#resultArea');
-
-    statusBox.className = 'status loading';
-    statusBox.querySelector('.spinner').classList.remove('hidden');
-    statusText.textContent = text || '正在处理中...';
-    resultArea.classList.add('hidden');
+  function copyText(text, msg) {
+    navigator.clipboard.writeText(text || '').then(() => showToast(msg || '已复制')).catch(e => showToast('复制失败'));
   }
 
-  function showError(error) {
-    const statusBox = shadowRoot.querySelector('#statusBox');
-    const statusText = shadowRoot.querySelector('#statusText');
-    const resultArea = shadowRoot.querySelector('#resultArea');
-
-    statusBox.className = 'status error';
-    statusBox.querySelector('.spinner').classList.add('hidden');
-    statusText.textContent = '错误: ' + error;
-    resultArea.classList.add('hidden');
+  function copyAllFields(r) {
+    const all = ['【中文提示词】', r.chinesePrompt, '', '【英文提示词】', r.englishPrompt, '', '【Negative Prompt】', r.negativePrompt, '', '【描述】', r.description, '', '【风格】', r.styleAnalysis].join('\n');
+    copyText(all, '全部内容已复制');
   }
 
-  function showResult(record) {
-    const statusBox = shadowRoot.querySelector('#statusBox');
-    const statusText = shadowRoot.querySelector('#statusText');
-    const resultArea = shadowRoot.querySelector('#resultArea');
-
-    statusBox.className = 'status success';
-    statusBox.querySelector('.spinner').classList.add('hidden');
-    statusText.textContent = '生成完成';
-    resultArea.classList.remove('hidden');
-
-    // 填充内容
-    shadowRoot.querySelector('#descriptionText').textContent = record.description || '无';
-    shadowRoot.querySelector('#styleText').textContent = record.styleAnalysis || '无';
-    shadowRoot.querySelector('#chineseText').textContent = record.chinesePrompt || '无';
-    shadowRoot.querySelector('#englishText').textContent = record.englishPrompt || '无';
-    shadowRoot.querySelector('#negativeText').textContent = record.negativePrompt || '无';
-    shadowRoot.querySelector('#rawText').textContent = record.rawText || '无';
+  async function sendToFeishu(btn, record) {
+    btn.disabled = true; btn.textContent = '发送中...';
+    try {
+      const res = await chrome.runtime.sendMessage({ type: 'SEND_TO_FEISHU', record });
+      if (res.success) { showToast('已发送到飞书'); btn.textContent = '已发送'; }
+      else { showToast('发送失败: ' + res.message); btn.textContent = '发送飞书'; btn.disabled = false; }
+    } catch (e) { showToast('发送失败'); btn.textContent = '发送飞书'; btn.disabled = false; }
   }
 
   function showToast(message) {
-    if (!shadowRoot) {
-      createOverlay();
-    }
+    ensureContainer();
     const toast = document.createElement('div');
     toast.className = 'toast';
     toast.textContent = message;
     shadowRoot.appendChild(toast);
-
-    setTimeout(() => {
-      toast.remove();
-    }, 3000);
-  }
-
-  // ==================== 工具函数 ====================
-
-  function copyToClipboard(text, successMessage) {
-    navigator.clipboard.writeText(text).then(() => {
-      showToast(successMessage || '已复制');
-    }).catch(err => {
-      showToast('复制失败: ' + err.message);
-    });
+    setTimeout(() => toast.remove(), 3000);
   }
 
   // ==================== 消息监听 ====================
@@ -606,25 +418,22 @@
 
     switch (message.type) {
       case 'START_PROCESSING':
-        currentRecord = { imageUrl: message.imageUrl };
-        createOverlay();
-        shadowRoot.querySelector('#imagePreview').src = message.imageUrl;
-        showLoading('正在分析图片，请稍候...');
-        showOverlay();
+        createNotificationCard(message.taskId, message.imageUrl);
         break;
 
       case 'SHOW_RESULT':
-        currentRecord = message.record;
-        showResult(message.record);
+        updateNotificationDone(message.taskId, message.record);
         break;
 
       case 'SHOW_ERROR':
-        if (message.imageUrl) {
-          createOverlay();
-          shadowRoot.querySelector('#imagePreview').src = message.imageUrl;
-          showOverlay();
+        if (message.taskId) {
+          updateNotificationError(message.taskId, message.error);
+        } else {
+          // 无 taskId 的旧式错误，创建临时通知
+          const errTaskId = generateTaskId();
+          createNotificationCard(errTaskId, message.imageUrl || '');
+          updateNotificationError(errTaskId, message.error);
         }
-        showError(message.error);
         break;
 
       case 'ENTER_PICKER_MODE':
@@ -1050,14 +859,12 @@
    * 发送 ANALYZE_IMAGE 给 background，由 background 通过 SHOW_RESULT/SHOW_ERROR 消息返回结果
    */
   function analyzeImage(imageUrl) {
-    createOverlay();
-    shadowRoot.querySelector('#imagePreview').src = imageUrl;
-    showLoading('正在分析图片，请稍候...');
-    showOverlay();
-
+    const taskId = generateTaskId();
+    createNotificationCard(taskId, imageUrl);
     chrome.runtime.sendMessage({
       type: 'ANALYZE_IMAGE',
-      imageUrl: imageUrl
+      imageUrl: imageUrl,
+      taskId: taskId
     });
   }
 
