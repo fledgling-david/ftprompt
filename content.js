@@ -309,12 +309,13 @@
     return card;
   }
 
-  function updateNotificationDone(taskId, record) {
+  function updateNotificationDone(taskId, record, bitableUrl) {
     const task = taskMap.get(taskId);
     if (!task) return;
     const { card } = task;
     task.record = record;
     task.status = 'done';
+    task.bitableUrl = bitableUrl || '';
     card.className = 'notification done';
     card.querySelector('.spinner').classList.add('hidden');
     const icon = card.querySelector('.status-icon');
@@ -336,7 +337,7 @@
       <button class="btn btn-primary" data-action="copy-cn">复制中文</button>
       <button class="btn btn-primary" data-action="copy-en">复制英文</button>
       <button class="btn btn-secondary" data-action="copy-all">复制全部</button>
-      <button class="btn btn-success" data-action="send-feishu">发送飞书</button>
+      <button class="btn btn-success" data-action="open-feishu">打开飞书</button>
     `;
     card.appendChild(actions);
     card.querySelector('.card-header').addEventListener('click', () => {
@@ -350,7 +351,7 @@
       if (action === 'copy-cn') copyText(record.chinesePrompt, '中文提示词已复制');
       else if (action === 'copy-en') copyText(record.englishPrompt, '英文提示词已复制');
       else if (action === 'copy-all') copyAllFields(record);
-      else if (action === 'send-feishu') sendToFeishu(e.target, record);
+      else if (action === 'open-feishu') openFeishu(task);
     });
   }
 
@@ -382,13 +383,12 @@
     copyText(all, '全部内容已复制');
   }
 
-  async function sendToFeishu(btn, record) {
-    btn.disabled = true; btn.textContent = '发送中...';
-    try {
-      const res = await chrome.runtime.sendMessage({ type: 'SEND_TO_FEISHU', record });
-      if (res.success) { showToast('已发送到飞书'); btn.textContent = '已发送'; }
-      else { showToast('发送失败: ' + res.message); btn.textContent = '发送飞书'; btn.disabled = false; }
-    } catch (e) { showToast('发送失败'); btn.textContent = '发送飞书'; btn.disabled = false; }
+  function openFeishu(task) {
+    if (task && task.bitableUrl) {
+      window.open(task.bitableUrl, '_blank');
+    } else {
+      showToast('请先在插件设置中配置飞书多维表格');
+    }
   }
 
   function showToast(message) {
@@ -422,7 +422,7 @@
         break;
 
       case 'SHOW_RESULT':
-        updateNotificationDone(message.taskId, message.record);
+        updateNotificationDone(message.taskId, message.record, message.bitableUrl);
         break;
 
       case 'SHOW_ERROR':

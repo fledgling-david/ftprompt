@@ -49,36 +49,42 @@
           <summary>OpenAI</summary>
           <div>Base URL: <code>https://api.openai.com/v1</code></div>
           <div>视觉模型: <code>gpt-4o</code> / <code>gpt-4o-mini</code></div>
+          <div><a href="https://platform.openai.com/api-keys" target="_blank">打开 OpenAI 开发者平台 →</a></div>
         </details>
 
         <details class="provider-detail">
           <summary>通义千问 (阿里云 DashScope)</summary>
           <div>Base URL: <code>https://dashscope.aliyuncs.com/compatible-mode/v1</code></div>
           <div>视觉模型: <code>qwen-vl-max</code> / <code>qwen-vl-plus</code></div>
+          <div><a href="https://dashscope.console.aliyun.com/apiKey" target="_blank">打开阿里云 DashScope 控制台 →</a></div>
         </details>
 
         <details class="provider-detail">
           <summary>智谱 GLM</summary>
           <div>Base URL: <code>https://open.bigmodel.cn/api/paas/v4</code></div>
           <div>视觉模型: <code>glm-4v</code> / <code>glm-4v-flash</code></div>
+          <div><a href="https://open.bigmodel.cn/usercenter/apikeys" target="_blank">打开智谱开放平台 →</a></div>
         </details>
 
         <details class="provider-detail">
           <summary>Kimi (月之暗面)</summary>
           <div>Base URL: <code>https://api.moonshot.cn/v1</code></div>
           <div>视觉模型: <code>moonshot-v1-8k-vision</code></div>
+          <div><a href="https://platform.moonshot.cn/console/api-keys" target="_blank">打开 Moonshot 开放平台 →</a></div>
         </details>
 
         <details class="provider-detail">
           <summary>豆包 (字节跳动火山引擎)</summary>
           <div>Base URL: <code>https://ark.cn-beijing.volces.com/api/v3</code></div>
           <div>注意: 模型名称填写控制台中的 <strong>Endpoint ID</strong></div>
+          <div><a href="https://console.volcengine.com/ark" target="_blank">打开火山引擎方舟控制台 →</a></div>
         </details>
 
         <details class="provider-detail">
           <summary>硅基流动</summary>
           <div>Base URL: <code>https://api.siliconflow.cn/v1</code></div>
           <div>注意: 模型名称填写平台上托管的视觉模型名</div>
+          <div><a href="https://cloud.siliconflow.cn/account/ak" target="_blank">打开硅基流动控制台 →</a></div>
         </details>
 
         <p class="info-note">所有服务商均使用 OpenAI Compatible 请求格式，请确保选择的模型支持视觉输入</p>
@@ -147,6 +153,12 @@
         <small>数据表 ID，格式：https://xxx.feishu.cn/base/bascnXXX?table=<strong>tblXXX</strong></small>
       </div>
 
+      <div class="form-group">
+        <label for="feishuDomain">飞书域名（选填）</label>
+        <input type="text" id="feishuDomain" placeholder="如 vqgfn2qql77">
+        <small>用于「打开飞书」按钮跳转到多维表格页面。从飞书 URL 中获取：<code>https://<strong>xxx</strong>.feishu.cn/...</code> 中的 <code>xxx</code> 部分</small>
+      </div>
+
       <h3>图片上传</h3>
       <div class="form-group">
         <label>
@@ -193,10 +205,6 @@
           <div>· 知识库表格：<code>https://xxx.feishu.cn/wiki/WikiToken?table=tblXXX</code></div>
           <div>&nbsp;&nbsp;其中 <code>WikiToken</code> 填入 App Token，插件会自动解析</div>
           <div>两种 URL 中的 <code>tblXXX</code> 都是 Table ID</div>
-        </details>
-        <details class="provider-detail">
-          <summary>5. 授权应用访问表格</summary>
-          <div>在多维表格右上角「...」→ 更多 → 添加机器人 → 搜索并添加你创建的应用</div>
         </details>
       </div>
     </section>

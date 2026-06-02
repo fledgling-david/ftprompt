@@ -6,6 +6,21 @@
 // 导入工具模块（Service Worker 中使用 importScripts）
 importScripts('utils/storage.js', 'utils/models.js', 'utils/feishu.js', 'utils/promptTemplate.js');
 
+/**
+ * 根据飞书配置构建多维表格 URL
+ * @param {object} config - 飞书配置
+ * @returns {string} 多维表格 URL
+ */
+function buildBitableUrl(config) {
+  if (!config.appToken || !config.tableId) return '';
+  const domain = config.feishuDomain || '';
+  const basePath = config.appToken.startsWith('bascn') ? 'base' : 'wiki';
+  if (domain) {
+    return `https://${domain}.feishu.cn/${basePath}/${config.appToken}?table=${config.tableId}`;
+  }
+  return `https://feishu.cn/${basePath}/${config.appToken}?table=${config.tableId}`;
+}
+
 // ==================== 并发任务队列 ====================
 
 const taskQueue = [];
@@ -130,7 +145,8 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         }
       }
 
-      await sendToContent(tab.id, { type: 'SHOW_RESULT', record, taskId });
+      const bitableUrl = buildBitableUrl(feishuConfig);
+      await sendToContent(tab.id, { type: 'SHOW_RESULT', record, taskId, bitableUrl });
     } catch (error) {
       console.error('[Background] 处理失败:', error);
       await sendToContent(tab.id, { type: 'SHOW_ERROR', error: error.message, imageUrl, taskId });
@@ -571,8 +587,9 @@ async function handleMessage(message, sender) {
           }
 
           // 发送结果到 content script 显示通知
+          const bitableUrl = buildBitableUrl(feishuConfig);
           if (tabId) {
-            await sendToContent(tabId, { type: 'SHOW_RESULT', record, taskId });
+            await sendToContent(tabId, { type: 'SHOW_RESULT', record, taskId, bitableUrl });
           }
 
           return { success: true, record };

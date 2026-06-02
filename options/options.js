@@ -320,6 +320,7 @@ async function loadFeishuConfig() {
   document.getElementById('feishuAppSecret').value = config.appSecret || '';
   document.getElementById('feishuAppToken').value = config.appToken || '';
   document.getElementById('feishuTableId').value = config.tableId || '';
+  document.getElementById('feishuDomain').value = config.feishuDomain || '';
   document.getElementById('feishuUploadImage').checked = config.uploadImage === true;
 }
 
@@ -330,6 +331,7 @@ document.getElementById('saveFeishuBtn').addEventListener('click', async () => {
     appSecret: document.getElementById('feishuAppSecret').value.trim(),
     appToken: document.getElementById('feishuAppToken').value.trim(),
     tableId: document.getElementById('feishuTableId').value.trim(),
+    feishuDomain: document.getElementById('feishuDomain').value.trim(),
     uploadImage: document.getElementById('feishuUploadImage').checked,
   };
   await Storage.saveFeishuConfig(config);
@@ -342,6 +344,7 @@ document.getElementById('testFeishuBtn').addEventListener('click', async () => {
     appSecret: document.getElementById('feishuAppSecret').value.trim(),
     appToken: document.getElementById('feishuAppToken').value.trim(),
     tableId: document.getElementById('feishuTableId').value.trim(),
+    feishuDomain: document.getElementById('feishuDomain').value.trim(),
   };
 
   if (!config.appId || !config.appSecret) {
@@ -370,6 +373,7 @@ document.getElementById('testWriteBtn').addEventListener('click', async () => {
     appSecret: document.getElementById('feishuAppSecret').value.trim(),
     appToken: document.getElementById('feishuAppToken').value.trim(),
     tableId: document.getElementById('feishuTableId').value.trim(),
+    feishuDomain: document.getElementById('feishuDomain').value.trim(),
     uploadImage: document.getElementById('feishuUploadImage').checked,
   };
 
