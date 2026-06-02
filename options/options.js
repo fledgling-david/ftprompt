@@ -311,53 +311,81 @@ document.getElementById('resetPromptBtn').addEventListener('click', async () => 
   showToast('已恢复默认模板');
 });
 
-// ==================== 飞书配置 ====================
+// ==================== 飞书多维表格配置 ====================
 
 async function loadFeishuConfig() {
   const config = await Storage.getFeishuConfig();
   document.getElementById('feishuEnabled').checked = config.enabled;
-  document.getElementById('feishuWebhook').value = config.webhookUrl;
-  document.getElementById('feishuFormat').value = config.format || 'markdown';
-  document.getElementById('sendImageUrl').checked = config.sendImageUrl !== false;
-  document.getElementById('sendImageBase64').checked = config.sendImageBase64 === true;
-  document.getElementById('sendTimestamp').checked = config.sendTimestamp !== false;
-  document.getElementById('sendSourceUrl').checked = config.sendSourceUrl !== false;
-  document.getElementById('sendPromptContent').checked = config.sendPromptContent !== false;
+  document.getElementById('feishuAppId').value = config.appId || '';
+  document.getElementById('feishuAppSecret').value = config.appSecret || '';
+  document.getElementById('feishuAppToken').value = config.appToken || '';
+  document.getElementById('feishuTableId').value = config.tableId || '';
 }
 
 document.getElementById('saveFeishuBtn').addEventListener('click', async () => {
   const config = {
     enabled: document.getElementById('feishuEnabled').checked,
-    webhookUrl: document.getElementById('feishuWebhook').value.trim(),
-    format: document.getElementById('feishuFormat').value,
-    sendImageUrl: document.getElementById('sendImageUrl').checked,
-    sendImageBase64: document.getElementById('sendImageBase64').checked,
-    sendTimestamp: document.getElementById('sendTimestamp').checked,
-    sendSourceUrl: document.getElementById('sendSourceUrl').checked,
-    sendPromptContent: document.getElementById('sendPromptContent').checked,
+    appId: document.getElementById('feishuAppId').value.trim(),
+    appSecret: document.getElementById('feishuAppSecret').value.trim(),
+    appToken: document.getElementById('feishuAppToken').value.trim(),
+    tableId: document.getElementById('feishuTableId').value.trim(),
   };
   await Storage.saveFeishuConfig(config);
   showToast('飞书配置已保存', 'success');
 });
 
 document.getElementById('testFeishuBtn').addEventListener('click', async () => {
-  const webhookUrl = document.getElementById('feishuWebhook').value.trim();
-  if (!webhookUrl) {
-    showToast('请先填写 Webhook URL', 'error');
+  const config = {
+    appId: document.getElementById('feishuAppId').value.trim(),
+    appSecret: document.getElementById('feishuAppSecret').value.trim(),
+    appToken: document.getElementById('feishuAppToken').value.trim(),
+    tableId: document.getElementById('feishuTableId').value.trim(),
+  };
+
+  if (!config.appId || !config.appSecret) {
+    showToast('请先填写 App ID 和 App Secret', 'error');
     return;
   }
 
-  showToast('正在测试飞书连接...');
+  showToast('正在测试连接...');
 
   const response = await chrome.runtime.sendMessage({
     type: 'TEST_FEISHU',
-    webhookUrl,
+    config,
   });
 
   if (response.success) {
     showToast(response.message, 'success');
   } else {
     showToast('测试失败: ' + response.message, 'error');
+  }
+});
+
+document.getElementById('testWriteBtn').addEventListener('click', async () => {
+  const config = {
+    enabled: true,
+    appId: document.getElementById('feishuAppId').value.trim(),
+    appSecret: document.getElementById('feishuAppSecret').value.trim(),
+    appToken: document.getElementById('feishuAppToken').value.trim(),
+    tableId: document.getElementById('feishuTableId').value.trim(),
+  };
+
+  if (!config.appId || !config.appSecret || !config.appToken || !config.tableId) {
+    showToast('请先填写完整配置', 'error');
+    return;
+  }
+
+  showToast('正在测试写入...');
+
+  const response = await chrome.runtime.sendMessage({
+    type: 'TEST_FEISHU_WRITE',
+    config,
+  });
+
+  if (response.success) {
+    showToast('写入成功！请检查多维表格是否新增了测试记录', 'success');
+  } else {
+    showToast('写入失败: ' + response.message, 'error');
   }
 });
 

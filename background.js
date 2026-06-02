@@ -95,6 +95,18 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       await Storage.addHistoryRecord(record);
     }
 
+    // 自动备份到飞书多维表格
+    const feishuConfig = await Storage.getFeishuConfig();
+    if (feishuConfig.enabled && feishuConfig.appToken && feishuConfig.tableId) {
+      const feishuResult = await FeishuAPI.writeToBitable(record, feishuConfig);
+      if (feishuResult.success) {
+        record.sentToFeishu = true;
+        await Storage.updateHistoryRecord(record.id, { sentToFeishu: true });
+      } else {
+        console.warn('[Background] 飞书自动备份失败:', feishuResult.message);
+      }
+    }
+
     // 发送结果到 content script 显示浮层
     await sendToContent(tab.id, {
       type: 'SHOW_RESULT',
@@ -446,11 +458,11 @@ async function handleMessage(message, sender) {
       return { success: true, parsed, rawText: result };
     }
 
-    // 发送到飞书
+    // 发送到飞书多维表格
     case 'SEND_TO_FEISHU': {
       const { record } = message;
       const feishuConfig = await Storage.getFeishuConfig();
-      const result = await FeishuAPI.sendToFeishuWebhook(record, feishuConfig);
+      const result = await FeishuAPI.writeToBitable(record, feishuConfig);
       if (result.success && record.id) {
         await Storage.updateHistoryRecord(record.id, { sentToFeishu: true });
       }
@@ -465,8 +477,14 @@ async function handleMessage(message, sender) {
 
     // 测试飞书连接
     case 'TEST_FEISHU': {
-      const { webhookUrl } = message;
-      return FeishuAPI.testFeishuWebhook(webhookUrl);
+      const { config } = message;
+      return FeishuAPI.testConnection(config);
+    }
+
+    // 测试飞书写入
+    case 'TEST_FEISHU_WRITE': {
+      const { config } = message;
+      return FeishuAPI.testWrite(config);
     }
 
     // 获取当前模型
@@ -520,6 +538,18 @@ async function handleMessage(message, sender) {
         const historySettings = await Storage.getHistorySettings();
         if (historySettings.enabled) {
           await Storage.addHistoryRecord(record);
+        }
+
+        // 自动备份到飞书多维表格
+        const feishuConfig = await Storage.getFeishuConfig();
+        if (feishuConfig.enabled && feishuConfig.appToken && feishuConfig.tableId) {
+          const feishuResult = await FeishuAPI.writeToBitable(record, feishuConfig);
+          if (feishuResult.success) {
+            record.sentToFeishu = true;
+            await Storage.updateHistoryRecord(record.id, { sentToFeishu: true });
+          } else {
+            console.warn('[Background] 飞书自动备份失败:', feishuResult.message);
+          }
         }
 
         // 如果来自 content script，显示结果浮层

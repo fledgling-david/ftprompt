@@ -176,14 +176,14 @@ const Storage = {
   async getFeishuConfig() {
     const data = await this.get('feishuConfig');
     return data.feishuConfig || {
-      webhookUrl: '',
       enabled: false,
-      format: 'markdown',       // plain | markdown | json
-      sendImageUrl: true,
-      sendImageBase64: false,
-      sendTimestamp: true,
-      sendSourceUrl: true,
-      sendPromptContent: true,
+      // 多维表格配置
+      appId: '',
+      appSecret: '',
+      appToken: '',
+      tableId: '',
+      // 旧版 Webhook 配置（兼容保留）
+      webhookUrl: '',
     };
   },
 
