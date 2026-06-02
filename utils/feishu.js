@@ -202,7 +202,9 @@ const FeishuAPI = {
     const fields = {};
 
     if (record.createdAt) {
-      fields['生成时间'] = new Date(record.createdAt).toLocaleString('zh-CN');
+      // 飞书多维表格「日期」字段需要 Unix 毫秒时间戳
+      const ts = new Date(record.createdAt).getTime();
+      fields['生成时间'] = isNaN(ts) ? record.createdAt : ts;
     }
     if (record.imageUrl) {
       fields['图片链接'] = record.imageUrl;
