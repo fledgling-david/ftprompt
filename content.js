@@ -954,30 +954,56 @@
     return null;
   }
 
-  // 监听图片/视频悬停
-  document.addEventListener('mouseover', (e) => {
-    // 优先检测 img，再检测 video[poster]，最后检测含背景图的元素
-    const img = e.target.closest('img');
-    const video = !img ? e.target.closest('video[poster]') : null;
-    const bgEl = (!img && !video) ? e.target.closest('[style*="background"]') : null;
+  /**
+   * 从鼠标事件目标元素中找到可分析的图片/视频
+   * 解决两个常见问题：
+   * 1. 遮罩层覆盖：e.target 是遮罩元素而非 <img>，需要查找子元素中的图片
+   * 2. 懒加载：native lazy 图片在可视区外时 naturalWidth=0，改用 clientWidth 判断
+   */
+  function findMediaFromEvent(e) {
+    // 第一步：向上查找 — 目标是 img/video/背景图 自身或其祖先
+    let img = e.target.closest('img');
+    let video = !img ? e.target.closest('video[poster]') : null;
+    let bgEl = (!img && !video) ? e.target.closest('[style*="background"]') : null;
 
-    let targetEl = img || video || bgEl;
-    if (!targetEl) return;
+    // 第二步：如果向上没找到 img，向下查找 — 可能是遮罩/覆盖层元素
+    if (!img && !video && !bgEl) {
+      const parent = e.target.closest('[class*="cover"], [class*="card"], [class*="note"], [class*="item"], [class*="thumb"], a[href]');
+      if (parent) {
+        img = parent.querySelector('img');
+        if (!img) video = parent.querySelector('video[poster]');
+      }
+    }
+
+    const targetEl = img || video || bgEl;
+    if (!targetEl) return null;
 
     const url = extractMediaUrl(targetEl);
-    if (!url) return;
+    if (!url) return null;
 
-    // 尺寸过滤：img 用 naturalWidth，video 用 videoWidth 或跳过
-    if (img && (img.naturalWidth <= 50 || img.naturalHeight <= 50)) return;
+    // 尺寸过滤：优先用显示尺寸 clientWidth（懒加载图片 naturalWidth 可能为 0）
+    if (img) {
+      const w = img.clientWidth || img.naturalWidth || 0;
+      const h = img.clientHeight || img.naturalHeight || 0;
+      if (w < 80 && h < 80) return null; // 显示尺寸太小的图片（如头像、图标）
+    }
 
-    hoveredImg = targetEl;
-    hoveredImageUrl = url;
-    showHoverButton(targetEl);
+    return { targetEl, url };
+  }
+
+  // 监听图片/视频悬停
+  document.addEventListener('mouseover', (e) => {
+    const result = findMediaFromEvent(e);
+    if (!result) return;
+
+    hoveredImg = result.targetEl;
+    hoveredImageUrl = result.url;
+    showHoverButton(result.targetEl);
   });
 
   document.addEventListener('mouseout', (e) => {
-    const el = e.target.closest('img') || e.target.closest('video[poster]') || e.target.closest('[style*="background"]');
-    if (el) {
+    const result = findMediaFromEvent(e);
+    if (result) {
       // 延迟隐藏，给用户时间点击按钮
       setTimeout(() => {
         if (!hoverButton?.matches(':hover')) {
