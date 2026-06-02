@@ -207,10 +207,11 @@ const FeishuAPI = {
       fields['生成时间'] = isNaN(ts) ? record.createdAt : ts;
     }
     if (record.imageUrl) {
-      fields['图片链接'] = record.imageUrl;
+      // 飞书多维表格「超链接」字段需要 { text, link } 对象格式
+      fields['图片链接'] = { text: '查看图片', link: record.imageUrl };
     }
     if (record.sourceUrl) {
-      fields['来源网页'] = record.sourceUrl;
+      fields['来源网页'] = { text: '来源页面', link: record.sourceUrl };
     }
     if (record.modelName) {
       fields['使用模型'] = record.modelName;
