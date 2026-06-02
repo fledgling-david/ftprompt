@@ -9,7 +9,7 @@
 - **智能图片获取** — 4 层回退策略 + 防盗链绕过，适配各类网站（包括花瓣、小红书等自定义右键的站点）
 - **结构化输出** — 自动解析为中文提示词、英文提示词、反向提示词、风格分析、画面描述
 - **历史记录** — 本地持久化存储，支持搜索、分页、导出 JSON
-- **飞书备份** — 一键将反推结果发送到飞书群机器人
+- **飞书多维表格备份** — 自动写入飞书多维表格，支持表格/画册视图浏览
 - **Shadow DOM 隔离** — UI 完全隔离，不影响原网页样式
 
 ## 界面预览
@@ -20,24 +20,37 @@
 ![Popup 弹出页](assets/screenshot-popup.png)
 
 ### 设置页 - 模型配置
-支持一键选择服务商快速添加模型，也可手动填写自定义 API 地址。内置服务商配置参考表，包含各平台的 Base URL 和视觉模型名称。
+支持一键选择服务商快速添加模型，也可手动填写自定义 API 地址。内置 6 大服务商配置参考（OpenAI、通义千问、智谱 GLM、Kimi、豆包、硅基流动），含各平台 Base URL、视觉模型名称和开发者平台快捷链接。
 
 ![设置页 - 模型配置](assets/screenshot-options.png)
 
-### 快速添加模型弹窗
-选择服务商后自动填入配置，只需粘贴 API Key 即可使用。
-
-![快速添加模型](assets/screenshot-modal.png)
-
 ### 反推结果面板
-反推完成后在网页上弹出结果浮层，包含画面描述、风格分析、中英文提示词、反向提示词等结构化内容，每个区块均可一键复制。
+反推完成后弹出结果浮层，包含画面描述、风格分析、中英文提示词、反向提示词等结构化内容，每个区块均可一键复制。适配小红书等各类网站。
 
 ![反推结果面板](assets/screenshot-result.png)
 
+### 右下角通知卡片
+反推过程以右下角通知卡片呈现，不遮挡页面浏览。支持最多 3 张图片并发处理，超出部分自动排队，处理完成后展示结果摘要。
+
+![反推通知](assets/screenshot-notification.png)
+
+![出词结果](assets/screenshot-notification-done.png)
+
+![并发处理](assets/screenshot-concurrent.png)
+
 ### 历史记录页
-所有反推结果自动保存，支持搜索、分页浏览、导出 JSON 和发送到飞书。
+所有反推结果自动保存，支持搜索、分页浏览、导出 JSON。点击卡片可展开查看完整的图片描述、风格分析和提示词详情。
 
 ![历史记录页](assets/screenshot-history.png)
+
+![历史记录详情](assets/screenshot-history-detail.png)
+
+### 飞书多维表格备份
+开启后每次反推结果自动写入飞书多维表格，支持表格视图和画册视图，方便管理和检索历史反推记录。
+
+![飞书多维表格 - 表格视图](assets/screenshot-feishu-table.png)
+
+![飞书多维表格 - 画册视图](assets/screenshot-feishu-gallery.png)
 
 ## 快速开始
 
@@ -113,11 +126,12 @@
 - 支持导出 JSON 文件
 - 可在设置页调整最大保存条数
 
-### 飞书备份
+### 飞书多维表格备份
 
-1. 在飞书群中添加自定义机器人，获取 Webhook 地址
-2. 在设置页「飞书备份」标签页填入 Webhook URL
-3. 开启飞书备份后，每次反推结果会自动发送到飞书群
+1. 在[飞书开放平台](https://open.feishu.cn)创建自建应用，获取 App ID 和 App Secret
+2. 创建一个飞书多维表格，从 URL 中获取 App Token 和 Table ID
+3. 在设置页「飞书多维表格」标签页填入配置并开启自动备份
+4. 开启后每次反推结果会自动写入多维表格，可在飞书中查看和管理
 
 ## 项目结构
 
@@ -143,7 +157,7 @@ chrome-image-prompt-reverse/
     ├── storage.js             # Chrome Storage 封装
     ├── models.js              # AI 模型调用
     ├── image.js               # 图片处理
-    ├── feishu.js              # 飞书消息
+    ├── feishu.js              # 飞书多维表格 API
     └── promptTemplate.js      # 提示词解析
 ```
 
