@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI图片提示词反推</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <header>
+      <h1>AI图片提示词反推</h1>
+      <p class="subtitle">右键图片 / 快捷键 Alt+R / 点击选图</p>
+    </header>
+
+    <div class="status-section">
+      <div class="status-item">
+        <span class="label">当前模型:</span>
+        <span class="value" id="activeModel">未配置</span>
+      </div>
+    </div>
+
+    <div class="action-buttons">
+      <button class="btn btn-primary" id="selectImageBtn">选择图片反推</button>
+      <button class="btn btn-secondary" id="openSettingsBtn">打开设置</button>
+      <button class="btn btn-secondary" id="openHistoryBtn">查看历史</button>
+    </div>
+
+    <div class="tip-section">
+      <p class="tip">💡 对于花瓣/小红书等自定义右键菜单的网站：</p>
+      <ul class="tip-list">
+        <li>点击「选择图片反推」后点击图片</li>
+        <li>鼠标悬停图片时按 Alt+R</li>
+        <li>悬停图片右上角的分析按钮</li>
+      </ul>
+    </div>
+
+    <div class="recent-section">
+      <h3>最近反推记录</h3>
+      <div id="recentList" class="recent-list">
+        <p class="empty-text">暂无记录</p>
+      </div>
+    </div>
+
+    <footer>
+      <p>v1.0.0 | <a href="https://github.com/your-repo" target="_blank">GitHub</a></p>
+    </footer>
+  </div>
+
+  <script src="../utils/storage.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

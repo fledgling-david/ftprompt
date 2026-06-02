@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI图片提示词反推 - 设置</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>AI图片提示词反推 - 设置</h1>
+    </header>
+
+    <!-- 标签页导航 -->
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="models">模型配置</button>
+      <button class="tab-btn" data-tab="prompt">提示词模板</button>
+      <button class="tab-btn" data-tab="feishu">飞书备份</button>
+      <button class="tab-btn" data-tab="history">历史记录</button>
+    </nav>
+
+    <!-- 模型配置 -->
+    <section id="models" class="tab-content active">
+      <div class="section-header">
+        <h2>模型配置</h2>
+        <div class="quick-add-group">
+          <select id="quickAddSelect">
+            <option value="" disabled selected>选择服务商...</option>
+            <option value="openai">OpenAI</option>
+            <option value="qwen">通义千问</option>
+            <option value="glm">智谱 GLM</option>
+            <option value="kimi">Kimi (月之暗面)</option>
+            <option value="doubao">豆包 (火山引擎)</option>
+            <option value="siliconflow">硅基流动</option>
+            <option value="custom">自定义</option>
+          </select>
+          <button class="btn btn-secondary" id="quickAddBtn">快速添加</button>
+        </div>
+        <button class="btn btn-primary" id="addModelBtn">+ 添加模型</button>
+      </div>
+
+      <div id="modelList" class="model-list"></div>
+
+      <div class="info-box">
+        <strong>服务商配置参考</strong>
+
+        <details class="provider-detail">
+          <summary>OpenAI</summary>
+          <div>Base URL: <code>https://api.openai.com/v1</code></div>
+          <div>视觉模型: <code>gpt-4o</code> / <code>gpt-4o-mini</code></div>
+        </details>
+
+        <details class="provider-detail">
+          <summary>通义千问 (阿里云 DashScope)</summary>
+          <div>Base URL: <code>https://dashscope.aliyuncs.com/compatible-mode/v1</code></div>
+          <div>视觉模型: <code>qwen-vl-max</code> / <code>qwen-vl-plus</code></div>
+        </details>
+
+        <details class="provider-detail">
+          <summary>智谱 GLM</summary>
+          <div>Base URL: <code>https://open.bigmodel.cn/api/paas/v4</code></div>
+          <div>视觉模型: <code>glm-4v</code> / <code>glm-4v-flash</code></div>
+        </details>
+
+        <details class="provider-detail">
+          <summary>Kimi (月之暗面)</summary>
+          <div>Base URL: <code>https://api.moonshot.cn/v1</code></div>
+          <div>视觉模型: <code>moonshot-v1-8k-vision</code></div>
+        </details>
+
+        <details class="provider-detail">
+          <summary>豆包 (字节跳动火山引擎)</summary>
+          <div>Base URL: <code>https://ark.cn-beijing.volces.com/api/v3</code></div>
+          <div>注意: 模型名称填写控制台中的 <strong>Endpoint ID</strong></div>
+        </details>
+
+        <details class="provider-detail">
+          <summary>硅基流动</summary>
+          <div>Base URL: <code>https://api.siliconflow.cn/v1</code></div>
+          <div>注意: 模型名称填写平台上托管的视觉模型名</div>
+        </details>
+
+        <p class="info-note">所有服务商均使用 OpenAI Compatible 请求格式，请确保选择的模型支持视觉输入</p>
+      </div>
+    </section>
+
+    <!-- 提示词模板 -->
+    <section id="prompt" class="tab-content">
+      <h2>提示词模板配置</h2>
+
+      <div class="form-group">
+        <label for="systemPrompt">系统提示词 (System Prompt)</label>
+        <textarea id="systemPrompt" rows="15" placeholder="输入系统提示词..."></textarea>
+        <small>定义 AI 的角色和分析角度</small>
+      </div>
+
+      <div class="form-group">
+        <label for="userPrompt">用户提示词 (User Prompt)</label>
+        <input type="text" id="userPrompt" placeholder="请输入用户提示词...">
+        <small>发送给模型的具体指令</small>
+      </div>
+
+      <button class="btn btn-primary" id="savePromptBtn">保存提示词模板</button>
+      <button class="btn btn-secondary" id="resetPromptBtn">恢复默认</button>
+    </section>
+
+    <!-- 飞书备份 -->
+    <section id="feishu" class="tab-content">
+      <h2>飞书备份配置</h2>
+
+      <div class="form-group">
+        <label>
+          <input type="checkbox" id="feishuEnabled"> 启用飞书备份
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label for="feishuWebhook">飞书 Webhook URL</label>
+        <input type="text" id="feishuWebhook" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/xxx">
+        <small>在飞书群中添加机器人，获取 Webhook 地址</small>
+      </div>
+
+      <div class="form-group">
+        <label for="feishuFormat">消息格式</label>
+        <select id="feishuFormat">
+          <option value="markdown">富文本 (推荐)</option>
+          <option value="json">卡片消息</option>
+        </select>
+      </div>
+
+      <h3>备份内容选项</h3>
+      <div class="checkbox-group">
+        <label><input type="checkbox" id="sendImageUrl" checked> 发送图片链接</label>
+        <label><input type="checkbox" id="sendImageBase64"> 发送图片 base64</label>
+        <label><input type="checkbox" id="sendTimestamp" checked> 发送生成时间</label>
+        <label><input type="checkbox" id="sendSourceUrl" checked> 发送网页来源</label>
+        <label><input type="checkbox" id="sendPromptContent" checked> 发送提示词内容</label>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn btn-primary" id="saveFeishuBtn">保存飞书配置</button>
+        <button class="btn btn-secondary" id="testFeishuBtn">测试连接</button>
+      </div>
+    </section>
+
+    <!-- 历史记录 -->
+    <section id="history" class="tab-content">
+      <h2>历史记录配置</h2>
+
+      <div class="form-group">
+        <label>
+          <input type="checkbox" id="historyEnabled" checked> 开启本地历史记录
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label for="historyMaxCount">最大保存条数</label>
+        <select id="historyMaxCount">
+          <option value="100">100 条</option>
+          <option value="500" selected>500 条</option>
+          <option value="1000">1000 条</option>
+          <option value="2000">2000 条</option>
+        </select>
+      </div>
+
+      <button class="btn btn-primary" id="saveHistoryBtn">保存配置</button>
+      <button class="btn btn-secondary" id="viewHistoryBtn">查看历史记录</button>
+      <button class="btn btn-secondary" id="exportHistoryBtn">导出 JSON</button>
+      <button class="btn btn-danger" id="clearHistoryBtn">清空历史</button>
+    </section>
+  </div>
+
+  <!-- 模型编辑弹窗 -->
+  <div id="modelModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">添加模型</h3>
+        <button class="close-btn" id="closeModalBtn">×</button>
+      </div>
+
+      <div class="modal-body">
+        <input type="hidden" id="modelId">
+
+        <div class="form-group">
+          <label for="modelName">服务商名称</label>
+          <input type="text" id="modelName" placeholder="例如：OpenAI / DeepSeek / 通义千问">
+        </div>
+
+        <div class="form-group">
+          <label for="modelBaseUrl">API Base URL</label>
+          <input type="text" id="modelBaseUrl" placeholder="https://api.openai.com/v1">
+          <small>不包含 /chat/completions</small>
+        </div>
+
+        <div class="form-group">
+          <label for="modelApiKey">API Key</label>
+          <input type="password" id="modelApiKey" placeholder="sk-xxx">
+        </div>
+
+        <div class="form-group">
+          <label for="modelModel">模型名称</label>
+          <input type="text" id="modelModel" placeholder="gpt-4o / deepseek-chat / qwen-vl-max">
+        </div>
+
+        <div class="form-group">
+          <label for="modelType">请求格式</label>
+          <select id="modelType">
+            <option value="openai">OpenAI Compatible</option>
+            <option value="gemini">Gemini (预留)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="modelVision" checked> 支持视觉输入
+          </label>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="testModelBtn">测试连接</button>
+        <button class="btn btn-primary" id="saveModelBtn">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../utils/storage.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

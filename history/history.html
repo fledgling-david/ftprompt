@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>历史记录 - AI图片提示词反推</title>
+  <link rel="stylesheet" href="history.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>历史记录</h1>
+      <div class="header-actions">
+        <input type="text" id="searchInput" placeholder="搜索提示词..." class="search-input">
+        <button class="btn btn-secondary" id="exportBtn">导出 JSON</button>
+        <button class="btn btn-danger" id="clearBtn">清空历史</button>
+      </div>
+    </header>
+
+    <div class="stats">
+      <span id="totalCount">共 0 条记录</span>
+    </div>
+
+    <div id="historyList" class="history-list">
+      <p class="empty-text">暂无历史记录</p>
+    </div>
+
+    <div id="pagination" class="pagination hidden">
+      <button class="btn btn-secondary" id="prevBtn">上一页</button>
+      <span id="pageInfo">第 1 页</span>
+      <button class="btn btn-secondary" id="nextBtn">下一页</button>
+    </div>
+  </div>
+
+  <!-- 详情弹窗 -->
+  <div id="detailModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>记录详情</h3>
+        <button class="close-btn" id="closeModalBtn">×</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="copyDetailBtn">复制全部</button>
+        <button class="btn btn-success" id="sendFeishuDetailBtn">发送飞书</button>
+        <button class="btn btn-danger" id="deleteDetailBtn">删除</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../utils/storage.js"></script>
+  <script src="../utils/feishu.js"></script>
+  <script src="history.js"></script>
+</body>
+</html>
