@@ -958,6 +958,23 @@
   // ==================== 快捷键支持 ====================
 
   /**
+   * 直接在页面中监听 Alt+R 快捷键（兜底方案）
+   * 当 manifest.json 的 suggested_key 未被用户在 chrome://extensions/shortcuts 中确认时，
+   * 此监听器保证快捷键仍然可用
+   */
+  document.addEventListener('keydown', (e) => {
+    if (e.altKey && (e.key === 'r' || e.key === 'R')) {
+      // 避免在输入框中误触发
+      const tag = (e.target.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+      analyzeHoveredImage();
+    }
+  }, true);
+
+  /**
    * 分析当前悬停的图片（Alt+R 触发）
    */
   function analyzeHoveredImage() {

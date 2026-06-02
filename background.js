@@ -27,10 +27,15 @@ chrome.runtime.onInstalled.addListener(() => {
  * Alt+R: 分析鼠标当前悬停的图片
  */
 chrome.commands.onCommand.addListener(async (command) => {
+  console.log('[Background] 收到命令:', command);
   if (command === 'reverse-prompt-hover') {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab) return;
+    if (!tab) {
+      console.warn('[Background] 未找到活动标签页');
+      return;
+    }
 
+    console.log('[Background] Alt+R 快捷键触发，正在发送 ANALYZE_HOVERED_IMAGE...');
     // 通知 content script 获取当前悬停的图片 URL 并分析
     await sendToContent(tab.id, { type: 'ANALYZE_HOVERED_IMAGE' });
   }
