@@ -794,6 +794,7 @@
   let pickerMode = false;
   let pickerOverlay = null;
   let hoveredImg = null;
+  let hoveredImageUrl = null; // 存储当前悬停元素的图片地址（img.src 或 video.poster）
 
   /**
    * 进入图片选择器模式
@@ -809,19 +810,19 @@
     pickerOverlay.innerHTML = `
       <div class="picker-header">
         <div class="picker-title">选择图片进行反推</div>
-        <div class="picker-subtitle">点击页面中的任意图片，或按 ESC 取消</div>
+        <div class="picker-subtitle">点击页面中的任意图片或视频封面，或按 ESC 取消</div>
       </div>
     `;
     document.body.appendChild(pickerOverlay);
 
-    // 给所有图片添加高亮样式
-    const images = document.querySelectorAll('img');
-    images.forEach(img => {
-      img.dataset.promptReverseOriginal = img.style.cssText;
-      img.style.outline = '3px solid #667eea';
-      img.style.outlineOffset = '2px';
-      img.style.cursor = 'pointer';
-      img.style.transition = 'transform 0.2s, box-shadow 0.2s';
+    // 给所有图片和视频封面添加高亮样式
+    const mediaElements = document.querySelectorAll('img, video[poster]');
+    mediaElements.forEach(el => {
+      el.dataset.promptReverseOriginal = el.style.cssText;
+      el.style.outline = '3px solid #667eea';
+      el.style.outlineOffset = '2px';
+      el.style.cursor = 'pointer';
+      el.style.transition = 'transform 0.2s, box-shadow 0.2s';
     });
 
     // 监听图片点击
@@ -842,12 +843,12 @@
       pickerOverlay = null;
     }
 
-    // 恢复图片样式
-    const images = document.querySelectorAll('img');
-    images.forEach(img => {
-      if (img.dataset.promptReverseOriginal !== undefined) {
-        img.style.cssText = img.dataset.promptReverseOriginal;
-        delete img.dataset.promptReverseOriginal;
+    // 恢复图片和视频元素样式
+    const mediaElements = document.querySelectorAll('img, video[poster]');
+    mediaElements.forEach(el => {
+      if (el.dataset.promptReverseOriginal !== undefined) {
+        el.style.cssText = el.dataset.promptReverseOriginal;
+        delete el.dataset.promptReverseOriginal;
       }
     });
 
@@ -860,12 +861,15 @@
    * 选择器模式下的点击处理
    */
   function pickerClickHandler(e) {
+    // 支持 img 和 video[poster] 元素
     const img = e.target.closest('img');
-    if (img && img.src) {
+    const video = !img ? e.target.closest('video[poster]') : null;
+    const src = img ? img.src : (video ? video.poster : null);
+    if (src) {
       e.preventDefault();
       e.stopPropagation();
       exitPickerMode();
-      analyzeImage(img.src);
+      analyzeImage(src);
     } else {
       // 点击非图片区域退出
       exitPickerMode();
@@ -901,8 +905,8 @@
     hoverButton.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      if (currentHoverImg && currentHoverImg.src) {
-        analyzeImage(currentHoverImg.src);
+      if (hoveredImageUrl) {
+        analyzeImage(hoveredImageUrl);
       }
       hideHoverButton();
     });
@@ -934,18 +938,46 @@
     currentHoverImg = null;
   }
 
-  // 监听图片悬停
-  document.addEventListener('mouseover', (e) => {
-    const img = e.target.closest('img');
-    if (img && img.src && img.naturalWidth > 50 && img.naturalHeight > 50) {
-      hoveredImg = img;
-      showHoverButton(img);
+  /**
+   * 从元素中提取图片 URL
+   * 支持: <img src>, <video poster>, CSS background-image
+   */
+  function extractMediaUrl(el) {
+    if (el.tagName === 'IMG' && el.src) return el.src;
+    if (el.tagName === 'VIDEO' && el.poster) return el.poster;
+    // 尝试 CSS background-image
+    const bg = getComputedStyle(el).backgroundImage;
+    if (bg && bg !== 'none') {
+      const match = bg.match(/url\(["']?(.*?)["']?\)/);
+      if (match && match[1]) return match[1];
     }
+    return null;
+  }
+
+  // 监听图片/视频悬停
+  document.addEventListener('mouseover', (e) => {
+    // 优先检测 img，再检测 video[poster]，最后检测含背景图的元素
+    const img = e.target.closest('img');
+    const video = !img ? e.target.closest('video[poster]') : null;
+    const bgEl = (!img && !video) ? e.target.closest('[style*="background"]') : null;
+
+    let targetEl = img || video || bgEl;
+    if (!targetEl) return;
+
+    const url = extractMediaUrl(targetEl);
+    if (!url) return;
+
+    // 尺寸过滤：img 用 naturalWidth，video 用 videoWidth 或跳过
+    if (img && (img.naturalWidth <= 50 || img.naturalHeight <= 50)) return;
+
+    hoveredImg = targetEl;
+    hoveredImageUrl = url;
+    showHoverButton(targetEl);
   });
 
   document.addEventListener('mouseout', (e) => {
-    const img = e.target.closest('img');
-    if (img) {
+    const el = e.target.closest('img') || e.target.closest('video[poster]') || e.target.closest('[style*="background"]');
+    if (el) {
       // 延迟隐藏，给用户时间点击按钮
       setTimeout(() => {
         if (!hoverButton?.matches(':hover')) {
@@ -978,10 +1010,10 @@
    * 分析当前悬停的图片（Alt+R 触发）
    */
   function analyzeHoveredImage() {
-    if (hoveredImg && hoveredImg.src) {
-      analyzeImage(hoveredImg.src);
+    if (hoveredImageUrl) {
+      analyzeImage(hoveredImageUrl);
     } else {
-      showToast('请先将鼠标悬停在图片上');
+      showToast('请先将鼠标悬停在图片或视频封面上');
     }
   }
 
