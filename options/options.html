@@ -132,8 +132,13 @@
       <h3>多维表格信息</h3>
       <div class="form-group">
         <label for="feishuAppToken">App Token</label>
-        <input type="text" id="feishuAppToken" placeholder="bascnxxxxxxxxxxxxxx">
-        <small>多维表格 URL 中获取，格式：https://xxx.feishu.cn/base/<strong>bascnXXX</strong></small>
+        <input type="text" id="feishuAppToken" placeholder="bascnXXX 或 Wiki Token">
+        <small>
+          从多维表格 URL 中获取：<br>
+          · 独立表格：https://xxx.feishu.cn/base/<strong>bascnXXX</strong>?table=tblXXX<br>
+          · 知识库表格：https://xxx.feishu.cn/wiki/<strong>WikiToken</strong>?table=tblXXX<br>
+          知识库中的表格会自动解析 Wiki Token
+        </small>
       </div>
 
       <div class="form-group">
@@ -167,6 +172,7 @@
           <summary>2. 添加权限</summary>
           <div>进入应用 → 权限管理 → 搜索并添加：</div>
           <div><code>bitable:app</code>（读写多维表格）</div>
+          <div><code>wiki:wiki:readonly</code>（知识库读取，知识库中的表格需要）</div>
           <div><code>drive:drive</code>（云盘文件上传，仅图片上传功能需要）</div>
           <div>然后点击「发布版本」并申请权限审批</div>
         </details>
@@ -182,8 +188,11 @@
         <details class="provider-detail">
           <summary>4. 获取 App Token 和 Table ID</summary>
           <div>打开多维表格，URL 格式为：</div>
-          <div><code>https://xxx.feishu.cn/base/bascnXXX?table=tblXXX</code></div>
-          <div>其中 <code>bascnXXX</code> 是 App Token，<code>tblXXX</code> 是 Table ID</div>
+          <div>· 独立表格：<code>https://xxx.feishu.cn/base/bascnXXX?table=tblXXX</code></div>
+          <div>&nbsp;&nbsp;其中 <code>bascnXXX</code> 是 App Token</div>
+          <div>· 知识库表格：<code>https://xxx.feishu.cn/wiki/WikiToken?table=tblXXX</code></div>
+          <div>&nbsp;&nbsp;其中 <code>WikiToken</code> 填入 App Token，插件会自动解析</div>
+          <div>两种 URL 中的 <code>tblXXX</code> 都是 Table ID</div>
         </details>
         <details class="provider-detail">
           <summary>5. 授权应用访问表格</summary>

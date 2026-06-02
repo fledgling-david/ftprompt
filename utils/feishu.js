@@ -11,6 +11,8 @@
 const FeishuAPI = {
   // token 缓存
   _tokenCache: { token: null, expiresAt: 0 },
+  // wiki → bitable app_token 缓存
+  _wikiCache: {},
 
   /**
    * 获取 tenant_access_token（带缓存）
@@ -48,6 +50,47 @@ const FeishuAPI = {
   },
 
   /**
+   * 将 Wiki Token 解析为 Bitable App Token
+   * 知识库中创建的多维表格 URL 为 /wiki/{wikiToken}，
+   * 需要通过 Wiki API 获取真正的 bitable app_token (bascn...)
+   * @param {string} token - tenant_access_token
+   * @param {string} appToken - 用户填写的 token（可能是 wiki token）
+   * @returns {Promise<string>} 真正的 bitable app_token
+   */
+  async resolveAppToken(token, appToken) {
+    // 如果已经是 bascn 开头，直接使用
+    if (appToken.startsWith('bascn')) return appToken;
+
+    // 查缓存
+    if (this._wikiCache[appToken]) return this._wikiCache[appToken];
+
+    // 调用 Wiki API 解析
+    const url = `https://open.feishu.cn/open-apis/wiki/v2/spaces/get_node?token=${appToken}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+
+    if (!response.ok) {
+      // 如果 wiki API 不存在，尝试直接当作 appToken 使用
+      console.warn('[FeishuAPI] Wiki 解析失败，尝试直接使用 appToken');
+      return appToken;
+    }
+
+    const result = await response.json();
+    if (result.code === 0 && result.data?.node?.obj_token) {
+      const realToken = result.data.node.obj_token;
+      console.log(`[FeishuAPI] Wiki Token ${appToken} → Bitable App Token ${realToken}`);
+      this._wikiCache[appToken] = realToken;
+      return realToken;
+    }
+
+    // 解析失败，返回原值让后续 API 报错
+    console.warn('[FeishuAPI] Wiki 解析结果异常:', result);
+    return appToken;
+  },
+
+  /**
    * 将反推记录写入多维表格
    * @param {object} record - 反推记录
    * @param {object} config - 飞书配置
@@ -63,12 +106,13 @@ const FeishuAPI = {
 
     try {
       const token = await this.getAccessToken(config.appId, config.appSecret);
+      const appToken = await this.resolveAppToken(token, config.appToken);
       const fields = this.buildRecordFields(record);
 
       // 如果启用了图片上传，先上传图片再关联附件字段
       if (config.uploadImage && record.imageUrl) {
         try {
-          const fileToken = await this.uploadImage(token, record.imageUrl, config.appToken);
+          const fileToken = await this.uploadImage(token, record.imageUrl, appToken);
           if (fileToken) {
             fields['图片附件'] = [{ file_token: fileToken }];
           }
@@ -77,7 +121,7 @@ const FeishuAPI = {
         }
       }
 
-      const url = `https://open.feishu.cn/open-apis/bitable/v1/apps/${config.appToken}/tables/${config.tableId}/records`;
+      const url = `https://open.feishu.cn/open-apis/bitable/v1/apps/${appToken}/tables/${config.tableId}/records`;
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -203,7 +247,8 @@ const FeishuAPI = {
         return { success: true, message: 'Token 获取成功！请填写表格 ID 后测试写入。' };
       }
 
-      const url = `https://open.feishu.cn/open-apis/bitable/v1/apps/${config.appToken}/tables/${config.tableId}/fields`;
+      const appToken = await this.resolveAppToken(token, config.appToken);
+      const url = `https://open.feishu.cn/open-apis/bitable/v1/apps/${appToken}/tables/${config.tableId}/fields`;
       const response = await fetch(url, {
         method: 'GET',
         headers: { 'Authorization': `Bearer ${token}` },
